@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PuzzleGame from './PuzzleGame';
@@ -55,13 +55,32 @@ const GameDashboard = ({ user }: GameDashboardProps) => {
   }, [user]);
 
   const fetchUserStats = async () => {
+    // Query the existing game_progress table
     const { data } = await supabase
-      .from('user_game_stats')
+      .from('game_progress')
       .select('*')
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
     
-    setUserStats(data);
+    if (data && data.length > 0) {
+      // Calculate stats from game_progress records
+      const completedPuzzles = data.filter(record => record.completed_at).length;
+      const totalScore = data.reduce((sum, record) => sum + (record.score || 0), 0);
+      const bestTime = data
+        .filter(record => record.time_taken)
+        .reduce((min, record) => Math.min(min, record.time_taken), Infinity);
+
+      setUserStats({
+        puzzles_completed: completedPuzzles,
+        total_score: totalScore,
+        best_time: bestTime === Infinity ? null : bestTime
+      });
+    } else {
+      setUserStats({
+        puzzles_completed: 0,
+        total_score: 0,
+        best_time: null
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -121,7 +140,7 @@ const GameDashboard = ({ user }: GameDashboardProps) => {
                   <div className="text-2xl font-bold text-purple-600">
                     {userStats.best_time || 'N/A'}
                   </div>
-                  <div className="text-sm text-gray-600">Best Time</div>
+                  <div className="text-sm text-gray-600">Best Time (seconds)</div>
                 </div>
               </div>
             </CardContent>

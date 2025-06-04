@@ -1,7 +1,7 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -119,39 +119,26 @@ const PuzzleGame = ({ level, user, onBack }: PuzzleGameProps) => {
   const saveGameResult = async (timeTaken: number) => {
     const score = Math.max(1000 - timeTaken, 100); // Higher score for faster completion
 
-    // Insert game result
-    await supabase.from('game_results').insert({
-      user_id: user.id,
-      level_id: level.id,
-      completion_time: timeTaken,
-      score: score,
-      pieces_count: level.pieces
-    });
-
-    // Update user stats
-    const { data: existingStats } = await supabase
-      .from('user_game_stats')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (existingStats) {
-      await supabase
-        .from('user_game_stats')
-        .update({
-          puzzles_completed: existingStats.puzzles_completed + 1,
-          total_score: existingStats.total_score + score,
-          best_time: existingStats.best_time ? 
-            Math.min(existingStats.best_time, timeTaken) : timeTaken
-        })
-        .eq('user_id', user.id);
-    } else {
-      await supabase.from('user_game_stats').insert({
+    try {
+      // Insert into the existing game_progress table
+      const { error } = await supabase.from('game_progress').insert({
         user_id: user.id,
-        puzzles_completed: 1,
-        total_score: score,
-        best_time: timeTaken
+        level_id: level.id,
+        completed_at: new Date().toISOString(),
+        time_taken: timeTaken,
+        score: score
       });
+
+      if (error) {
+        console.error('Error saving game result:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save your progress",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving game result:', error);
     }
   };
 

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import AuthComponent from '@/components/AuthComponent';
 import GameDashboard from '@/components/GameDashboard';
 import { User } from '@supabase/supabase-js';
